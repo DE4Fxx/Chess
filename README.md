@@ -1,8 +1,8 @@
-#Chess Game with Stockfish AI Integration
-##Overview
+# Chess Game with Stockfish AI Integration
+## Overview
 This project is a fully functional chess game developed in Python, featuring integration with the renowned Stockfish AI engine. The game provides a platform for chess enthusiasts to challenge themselves against one of the strongest chess engines in the world.
 
-##Features
+## Features
 Stockfish AI Integration: Play against the Stockfish engine, known for its formidable playing strength.
 Pygame Interface: Smooth and user-friendly graphical interface built using Pygame, enhancing the gaming experience.
 Flexible Game Modes: Options to play against another player, against AI, or watch an AI vs AI match.
