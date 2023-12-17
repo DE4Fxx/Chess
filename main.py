@@ -69,8 +69,8 @@ def draw_graveyard(surface, captured_pieces, piece_size=(40, 40)):
     max_pieces_column = GRAVEYARD_HEIGHT // piece_height
 
     # Define the padding or spacing between pieces if you want
-    x_padding = 5
-    y_padding = 0
+    x_padding = 2.5
+    y_padding = 2.5
 
     # Clear the graveyard area with a background color for white and black captured pieces
     surface.blit(image,(WHITE_GRAVEYARD_POS[0], WHITE_GRAVEYARD_POS[1]))
@@ -132,16 +132,16 @@ def start_screen():
         if choosing_mode:
             play_player = draw_button(screen, "Play against Player", 250, 250, 350, 100, HOVER_COLOR, BUTTON_COLOR)
             play_ai = draw_button(screen, "Play against AI", 250, 400, 300, 100, HOVER_COLOR, BUTTON_COLOR)
-            ai_v_ai = draw_button(screen, "AI vs AI", 250, 550, 300, 100, HOVER_COLOR, BUTTON_COLOR)
+            # ai_v_ai = draw_button(screen, "AI vs AI", 250, 550, 300, 100, HOVER_COLOR, BUTTON_COLOR)
             if play_player:
                 mode = "player"
                 choosing_mode = False
             elif play_ai:
                 mode = "ai"
                 choosing_mode = False
-            elif ai_v_ai:
-                mode = "aivai"
-                choosing_mode = False
+            # elif ai_v_ai:
+            #     mode = "aivai"
+            #     choosing_mode = False
         elif(mode == "ai"):
             if not color_selected:
                 black = draw_button(screen, "Black", 250, 250, 300, 100, HOVER_COLOR, BUTTON_COLOR)
@@ -404,42 +404,43 @@ def main():
                 # Introduce a delay between AI moves
                 time.sleep(1)
 
-            elif mode == "aivai":
-                if checker_board.turn == chess.WHITE:
-                    legal_moves = list(checker_board.legal_moves)
-                    if legal_moves:
-                        result = engine.play(checker_board, chess.engine.Limit(time=1.0))
-                        move = result.move
-                        checker_board.push(move)
-                        from_square = board.get_square(move.uci()[:2].upper())
-                        to_square = board.get_square(move.uci()[2:].upper())
-                        captured = to_square.move_piece()
-                        piece = from_square.move_piece()
-                        to_square.set_piece(piece)
-                        selected_square = from_square
-                        if captured:
-                            captured_piece = captured
-                            board.capture_piece(captured_piece)
-                    else:
-                        checkmate(screen,checker_board)
-                else:
-                    legal_moves = list(checker_board.legal_moves)
-                    if legal_moves:
-                        result = engine2.play(checker_board, chess.engine.Limit(time=1.0))
-                        move = result.move
-                        checker_board.push(move)
-                        from_square = board.get_square(move.uci()[:2].upper())
-                        to_square = board.get_square(move.uci()[2:].upper())
-                        captured = to_square.move_piece()
-                        piece = from_square.move_piece()
-                        to_square.set_piece(piece)
-                        selected_square = from_square
-                        if captured:
-                            captured_piece = captured
-                            board.capture_piece(captured_piece)
-                    else:
-                        checkmate(screen,checker_board)
-                time.sleep(0.5)
+            # elif mode == "aivai":
+            #     legal_moves = list(checker_board.legal_moves)
+            #     if checker_board.turn == chess.WHITE:
+            #         aithinking(screen,font,FONT_COLOR)
+            #         if legal_moves:
+            #             result = engine.play(checker_board, chess.engine.Limit(time=1.0))
+            #             move = result.move
+            #             checker_board.push(move)
+            #             from_square = board.get_square(move.uci()[:2].upper())
+            #             to_square = board.get_square(move.uci()[2:].upper())
+            #             captured = to_square.move_piece()
+            #             piece = from_square.move_piece()
+            #             to_square.set_piece(piece)
+            #             selected_square = from_square
+            #             if captured:
+            #                 captured_piece = captured
+            #                 board.capture_piece(captured_piece)
+            #         else:
+            #             checkmate(screen,checker_board)
+            #     elif checker_board.turn == chess.BLACK:
+            #         aithinking(screen,font,FONT_COLOR)
+            #         if legal_moves:
+            #             result = engine2.play(checker_board, chess.engine.Limit(time=1.0))
+            #             move = result.move
+            #             checker_board.push(move)
+            #             from_square = board.get_square(move.uci()[:2].upper())
+            #             to_square = board.get_square(move.uci()[2:].upper())
+            #             captured = to_square.move_piece()
+            #             piece = from_square.move_piece()
+            #             to_square.set_piece(piece)
+            #             selected_square = from_square
+            #             if captured:
+            #                 captured_piece = captured
+            #                 board.capture_piece(captured_piece)
+            #         else:
+            #             checkmate(screen,checker_board)
+                
 
 
         #  background
