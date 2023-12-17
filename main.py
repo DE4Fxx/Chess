@@ -62,17 +62,19 @@ def draw_button(screen, text, x, y, w, h, active_color, inactive_color):
     return False
 
 def draw_graveyard(surface, captured_pieces, piece_size=(40, 40)):
+    image = pygame.image.load("assets\pixel chess\extras\graveyard2.jpg")
+    image = pygame.transform.scale(image,(GRAVEYARD_WIDTH, GRAVEYARD_HEIGHT))
     piece_width, piece_height = piece_size
     pieces_per_row = GRAVEYARD_WIDTH // piece_width
     max_pieces_column = GRAVEYARD_HEIGHT // piece_height
 
     # Define the padding or spacing between pieces if you want
-    x_padding = 0
+    x_padding = 5
     y_padding = 0
 
     # Clear the graveyard area with a background color for white and black captured pieces
-    surface.fill(GRAY, (WHITE_GRAVEYARD_POS[0], WHITE_GRAVEYARD_POS[1], GRAVEYARD_WIDTH, GRAVEYARD_HEIGHT))
-    surface.fill(GRAY, (BLACK_GRAVEYARD_POS[0], BLACK_GRAVEYARD_POS[1], GRAVEYARD_WIDTH, GRAVEYARD_HEIGHT))
+    surface.blit(image,(WHITE_GRAVEYARD_POS[0], WHITE_GRAVEYARD_POS[1]))
+    surface.blit(image,(BLACK_GRAVEYARD_POS[0], BLACK_GRAVEYARD_POS[1]))
 
     # Draw captured white pieces
     white_pieces = captured_pieces['white']
