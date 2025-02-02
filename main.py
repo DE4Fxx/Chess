@@ -63,7 +63,7 @@ def draw_button(screen, text, x, y, w, h, active_color, inactive_color):
 
     return False
 
-def draw_graveyard(surface, captured_pieces, piece_size=(40, 40)):
+def draw_graveyard(surface, captured_pieces, piece_size=(30,45)):
     image = pygame.image.load("assets/pixel chess/extras/graveyard2.jpg")
     image = pygame.transform.scale(image,(GRAVEYARD_WIDTH, GRAVEYARD_HEIGHT))
     piece_width, piece_height = piece_size
@@ -87,6 +87,7 @@ def draw_graveyard(surface, captured_pieces, piece_size=(40, 40)):
             x = WHITE_GRAVEYARD_POS[0] + col * (piece_width + x_padding) + x_padding
             y = WHITE_GRAVEYARD_POS[1] + row * (piece_height + y_padding) + y_padding
             piece_image = pygame.image.load(piece.image())
+            piece_image = pygame.transform.scale(piece_image,piece_size)
             surface.blit(piece_image, (x, y))
 
     # Draw captured black pieces
@@ -98,6 +99,7 @@ def draw_graveyard(surface, captured_pieces, piece_size=(40, 40)):
             x = BLACK_GRAVEYARD_POS[0] + col * (piece_width + x_padding) + x_padding
             y = BLACK_GRAVEYARD_POS[1] + row * (piece_height + y_padding) + y_padding + GRAVEYARD_HEIGHT // 2
             piece_image = pygame.image.load(piece.image())
+            piece_image = pygame.transform.scale(piece_image,piece_size)
             surface.blit(piece_image, (x, y))
 
 def checkmate(screen, board):
@@ -215,12 +217,13 @@ def highlight_move_destination(screen, board,legal_moves, selected_piece, highli
         # Blit the highlight surface onto the screen at the calculated position
         screen.blit(highlight_surface, highlight_pos)
 
+
     # Update the display to show the new highlights
     pygame.display.flip()
 
 def get_square_at_mouse_click(board_rect, SQUARE_SIZE):
     mouse_pos = pygame.mouse.get_pos()
-    board_rect = pygame.Rect(0, 0, 600,600)  # Define this with the correct values
+    board_rect = pygame.Rect(0, 0, SCREEN_WIDTH,SCREEN_HEIGHT)
 
     if board_rect.collidepoint(mouse_pos):
         # Calculate the row and column number based on the mouse position.
@@ -293,6 +296,8 @@ def main():
     selected_piece = None
     selected_square = None
     highlight_color = (255, 255, 0)  # Yellow for highlighting
+    from_square = None
+    to_square = None
 
 
 
@@ -316,7 +321,7 @@ def main():
     
     chessboard_background = pygame.image.load(board.image())
 
-    chessboard_background = pygame.transform.scale(chessboard_background, (600, 600))
+    chessboard_background = pygame.transform.scale(chessboard_background,(600+20, 600))
 
     # game loop
 
@@ -394,8 +399,10 @@ def main():
                     aithinking(screen, font, FONT_COLOR)
                     fen = checker_board.fen()
                     print(fen)
-                    request = requests.get("https://stockfish.online/api/s/v2.php",params={"fen":fen,"depth":AI_DELAY})
+                    request = requests.get("https://stockfish.online/api/s/v2.php",params={"fen":fen,"depth":1})
+                    print(request)
                     json_dict = request.json()
+                    print(json_dict)
                     best_moves = json_dict["bestmove"]
                     best_move = best_moves.split(" ")[1]
                     best_move = chess.Move.from_uci(best_move)
@@ -419,7 +426,6 @@ def main():
                     # Introduce a delay between AI moves
                     time.sleep(1)
         elif mode == "aivai":
-
             dt = clock.get_time() / 1000
             time_since_last_ai_move += dt
             legal_moves = list(checker_board.legal_moves)
@@ -480,7 +486,7 @@ def main():
 
 
         #  background
-        screen.blit(chessboard_background,(0,0))
+        screen.blit(chessboard_background,(-10,1))
         screen.blit(turn_display_surface, (x, y))
         draw_graveyard(screen,captured_pieces)
         draw_pieces(screen,board)
@@ -489,10 +495,16 @@ def main():
                 highlight_color = (0,0,0)
             else:
                 highlight_color = (255,255,255)
-            pygame.draw.rect(screen, highlight_color, 
-                             (COLS.index(selected_square.get_position()[0]) * SQUARE_WIDTH,
-                              (int(selected_square.get_position()[1])-1) * SQUARE_HEIGHT, 
-                              SQUARE_WIDTH, SQUARE_HEIGHT), 3)  # 3 pixels wide border
+            if from_square and to_square:
+                pygame.draw.rect(screen, highlight_color, 
+                                (COLS.index(from_square.get_position()[0]) * SQUARE_WIDTH,
+                                (int(from_square.get_position()[1])-1) * SQUARE_HEIGHT, 
+                                SQUARE_WIDTH, SQUARE_HEIGHT), 3)  # 3 pixels wide border
+
+                pygame.draw.rect(screen, highlight_color, 
+                (COLS.index(to_square.get_position()[0]) * SQUARE_WIDTH,
+                (int(to_square.get_position()[1])-1) * SQUARE_HEIGHT, 
+                SQUARE_WIDTH, SQUARE_HEIGHT), 3)
         # if selected_piece:
             # highlight_move_destination(screen,board,checker_board.legal_moves,selected_square,highlight_color,SQUARE_SIZE)
         draw_graveyard(screen,captured_pieces)
