@@ -1,16 +1,16 @@
 import time
 from board import *
+import requests
 import chess
-import chess.engine
-
 import warnings
-
+import re
+import json
+import random
 
 
 
 # This engine is for the stockfish engine which is downloadable at https://stockfishchess.org/download/windows/
 
-ENGINE_PATH = "assets/stockfish/stockfish/stockfish-windows-x86-64-avx2.exe"
 
 
 warnings.simplefilter("ignore")
@@ -39,6 +39,8 @@ SCREEN_HEIGHT = 800
 
 SQUARE_WIDTH = 600 // 8
 SQUARE_HEIGHT = 600 // 8
+AI_DELAY = 0.1
+
 
 # Colors
 BLACK = (0, 0, 0)
@@ -62,7 +64,7 @@ def draw_button(screen, text, x, y, w, h, active_color, inactive_color):
     return False
 
 def draw_graveyard(surface, captured_pieces, piece_size=(40, 40)):
-    image = pygame.image.load("assets\pixel chess\extras\graveyard2.jpg")
+    image = pygame.image.load("assets/pixel chess/extras/graveyard2.jpg")
     image = pygame.transform.scale(image,(GRAVEYARD_WIDTH, GRAVEYARD_HEIGHT))
     piece_width, piece_height = piece_size
     pieces_per_row = GRAVEYARD_WIDTH // piece_width
@@ -132,16 +134,16 @@ def start_screen():
         if choosing_mode:
             play_player = draw_button(screen, "Play against Player", 250, 250, 350, 100, HOVER_COLOR, BUTTON_COLOR)
             play_ai = draw_button(screen, "Play against AI", 250, 400, 300, 100, HOVER_COLOR, BUTTON_COLOR)
-            # ai_v_ai = draw_button(screen, "AI vs AI", 250, 550, 300, 100, HOVER_COLOR, BUTTON_COLOR)
+            ai_v_ai = draw_button(screen, "AI vs AI", 250, 550, 300, 100, HOVER_COLOR, BUTTON_COLOR)
             if play_player:
                 mode = "player"
                 choosing_mode = False
             elif play_ai:
                 mode = "ai"
                 choosing_mode = False
-            # elif ai_v_ai:
-            #     mode = "aivai"
-            #     choosing_mode = False
+            elif ai_v_ai:
+                mode = "aivai"
+                choosing_mode = False
         elif(mode == "ai"):
             if not color_selected:
                 black = draw_button(screen, "Black", 250, 250, 300, 100, HOVER_COLOR, BUTTON_COLOR)
@@ -195,19 +197,16 @@ def aithinking(screen,font,color):
 def highlight_move_destination(screen, board,legal_moves, selected_piece, highlight_color, SQUARE_SIZE):
     if not legal_moves or not selected_piece:
         return
-
     # Create a transparent surface to overlay for highlighting
     highlight_surface = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE))
     highlight_surface.set_alpha(128)  # Semi-transparent
     highlight_surface.fill(highlight_color)
 
     # Determine the original square of the selected piece
-    origin_square_algebraic = selected_piece.get_position().lower()
 
     for move in legal_moves:
         move = str(move)
         # Extract the destination square from the move string
-        destination_square_algebraic = move[-2:]
 
         # Calculate the position to highlight on the screen
         # The y-position is adjusted by subtracting 1 from the row because Pygame's grid starts at 0,0 at the top-left
@@ -247,32 +246,39 @@ def end_game(screen, winner):
     pygame.display.flip()
 
 def main():
-
+    time_since_last_ai_move = 0
     engine = None
     engine2 = None
     chosen = None
-
+    player = None
+    # Hold AI's move
+    best_move = None
+    board = Board()
+    checker_board = chess.Board()
+    board.initialize_pieces()
+    clock = pygame.time.Clock()
 
     # Show the start screen
     mode,player = start_screen()
     
     if player == "black":
-        chosen = chess.WHITE
-    else:
         chosen = chess.BLACK
+    else:
+        chosen = chess.WHITE
+
+    if mode == "aivai":
+        colors = [chess.WHITE, chess.BLACK]
+        engine = colors[random.randint(0,1)]
+        if engine == chess.WHITE:
+            engine2 = colors[1]
+        else:
+            engine2 = colors[0]
 
 
     if mode is None:
         # That just means the user closed the window
         pygame.quit()
         return
-    
-    elif mode == "ai":
-        engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
-
-    elif mode == "aivai":
-        engine = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
-        engine2 = chess.engine.SimpleEngine.popen_uci(ENGINE_PATH)
     
 
 
@@ -289,13 +295,14 @@ def main():
     highlight_color = (255, 255, 0)  # Yellow for highlighting
 
 
+
+
     x = (SCREEN_WIDTH - 200) // 2
 
     y = 600
 
-    board = Board()
-    checker_board = chess.Board()
-    board.initialize_pieces()
+
+
 
 
     WHITE_TURN_COLOR = (255, 255, 255)  # white color
@@ -323,6 +330,8 @@ def main():
     running = True
     while running:
 
+
+
         if checker_board.turn == chess.WHITE:
             turn_display_surface.fill(WHITE_TURN_COLOR)
             text = font.render("White's Turn", True, FONT_COLOR)
@@ -337,110 +346,137 @@ def main():
             elif outcome.winner == chess.BLACK:
                 end_game(screen,"black")
 
-
-
         # position the text to be center of the surface
         text_rect = text.get_rect(center=(100, 100))
         turn_display_surface.blit(text, text_rect)
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                # find the clicked square
-                col = event.pos[0] // SQUARE_WIDTH
-                row = event.pos[1] // SQUARE_HEIGHT
-                selected_square = board.get_square(f"{COLS[col]}{ROWS[row]}")
-                selected_piece = selected_square.get_piece()
-                legal_moves = checker_board.legal_moves              
+        if mode == "player" or mode == "ai":
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    # find the clicked square
+                    col = event.pos[0] // SQUARE_WIDTH
+                    row = event.pos[1] // SQUARE_HEIGHT
+                    selected_square = board.get_square(f"{COLS[col]}{ROWS[row]}")
+                    selected_piece = selected_square.get_piece()
+                    legal_moves = checker_board.legal_moves              
 
-            elif event.type == pygame.MOUSEBUTTONUP and selected_piece:
-                col = event.pos[0] // SQUARE_WIDTH
-                row = event.pos[1] // SQUARE_HEIGHT
-                target_square = board.get_square(f"{COLS[col]}{ROWS[row]}")
-                
-                # validate squares
-                if target_square != selected_square:
-                    move_uci = f"{selected_square.get_position().lower()}{target_square.get_position().lower()}"
+                if event.type == pygame.MOUSEBUTTONUP and selected_piece:
+                    col = event.pos[0] // SQUARE_WIDTH
+                    row = event.pos[1] // SQUARE_HEIGHT
+                    target_square = board.get_square(f"{COLS[col]}{ROWS[row]}")
                     
-                    # validate move
-                    if chess.Move.from_uci(move_uci) in checker_board.legal_moves:
-                        checker_board.push(chess.Move.from_uci(move_uci))
+                    # validate squares
+                    if target_square != selected_square:
+                        move_uci = f"{selected_square.get_position().lower()}{target_square.get_position().lower()}"
                         
-                        # update
-                        captured = target_square.move_piece()
-                        selected_square.move_piece()  
-                        target_square.set_piece(selected_piece) 
-                        selected_piece = None  
+                        # validate move
+                        if chess.Move.from_uci(move_uci) in checker_board.legal_moves:
+                            checker_board.push(chess.Move.from_uci(move_uci))
+                            
+                            # update
+                            captured = target_square.move_piece()
+                            selected_square.move_piece()  
+                            target_square.set_piece(selected_piece) 
+                            selected_piece = None  
+                            
+                            # Update selected_square after a successful move
+                            selected_square = target_square
+
+
+                            if captured:
+                                captured_piece = captured
+                                board.capture_piece(captured_piece)                            
+                    else:
+                        selected_piece = None
                         
-                        # Update selected_square after a successful move
-                        selected_square = target_square
+                elif mode == "ai" and checker_board.turn != chosen:
+                    aithinking(screen, font, FONT_COLOR)
+                    fen = checker_board.fen()
+                    print(fen)
+                    request = requests.get("https://stockfish.online/api/s/v2.php",params={"fen":fen,"depth":AI_DELAY})
+                    json_dict = request.json()
+                    best_moves = json_dict["bestmove"]
+                    best_move = best_moves.split(" ")[1]
+                    best_move = chess.Move.from_uci(best_move)
+                    print(best_move)
+                    legal_moves = list(checker_board.legal_moves)
+                    if legal_moves:
+                        checker_board.push(best_move)
+                        from_square = board.get_square(best_move.uci()[:2].upper())
+                        to_square = board.get_square(best_move.uci()[2:].upper())
+                        captured = to_square.get_piece()
+                        piece = from_square.move_piece()
+                        to_square.set_piece(piece)
 
                         if captured:
                             captured_piece = captured
-                            board.capture_piece(captured_piece)                            
-                else:
-                    selected_piece = None
-                    
-            elif mode == "ai" and checker_board.turn == chosen:
-                aithinking(screen, font, FONT_COLOR)
-                legal_moves = list(checker_board.legal_moves)
+                            board.capture_piece(captured_piece)
+                        selected_square = from_square
+                    else:
+                        checkmate(screen)
+
+                    # Introduce a delay between AI moves
+                    time.sleep(1)
+        elif mode == "aivai":
+
+            dt = clock.get_time() / 1000
+            time_since_last_ai_move += dt
+            legal_moves = list(checker_board.legal_moves)
+            fen = checker_board.fen()
+            if checker_board.turn == engine and time_since_last_ai_move >= AI_DELAY:
+                print("engine") 
+                print("get_time:",clock.get_time())
+                aithinking(screen,font,FONT_COLOR)
+                print(fen)
+                request = requests.get("https://stockfish.online/api/s/v2.php",params={"fen":fen,"depth":1})
+                json_dict = request.json()
+                best_moves = json_dict["bestmove"]
+                best_move = best_moves.split(" ")[1]
+                best_move = chess.Move.from_uci(best_move)
+                print(best_move)
                 if legal_moves:
-                    result = engine.play(checker_board, chess.engine.Limit(time=1.0))
-                    move = result.move
-                    checker_board.push(move)
-                    from_square = board.get_square(move.uci()[:2].upper())
-                    to_square = board.get_square(move.uci()[2:].upper())
-                    captured = to_square.get_piece()
+                    checker_board.push(best_move)
+                    from_square = board.get_square(best_move.uci()[:2].upper())
+                    to_square = board.get_square(best_move.uci()[2:].upper())
+                    captured = to_square.move_piece()
                     piece = from_square.move_piece()
                     to_square.set_piece(piece)
-
+                    selected_square = from_square
                     if captured:
                         captured_piece = captured
                         board.capture_piece(captured_piece)
-                    selected_square = from_square
+                    time_since_last_ai_move = 0
                 else:
-                    checkmate(screen)
-
-                # Introduce a delay between AI moves
-                time.sleep(1)
-
-            # elif mode == "aivai":
-            #     legal_moves = list(checker_board.legal_moves)
-            #     if checker_board.turn == chess.WHITE:
-            #         aithinking(screen,font,FONT_COLOR)
-            #         if legal_moves:
-            #             result = engine.play(checker_board, chess.engine.Limit(time=1.0))
-            #             move = result.move
-            #             checker_board.push(move)
-            #             from_square = board.get_square(move.uci()[:2].upper())
-            #             to_square = board.get_square(move.uci()[2:].upper())
-            #             captured = to_square.move_piece()
-            #             piece = from_square.move_piece()
-            #             to_square.set_piece(piece)
-            #             selected_square = from_square
-            #             if captured:
-            #                 captured_piece = captured
-            #                 board.capture_piece(captured_piece)
-            #         else:
-            #             checkmate(screen,checker_board)
-            #     elif checker_board.turn == chess.BLACK:
-            #         aithinking(screen,font,FONT_COLOR)
-            #         if legal_moves:
-            #             result = engine2.play(checker_board, chess.engine.Limit(time=1.0))
-            #             move = result.move
-            #             checker_board.push(move)
-            #             from_square = board.get_square(move.uci()[:2].upper())
-            #             to_square = board.get_square(move.uci()[2:].upper())
-            #             captured = to_square.move_piece()
-            #             piece = from_square.move_piece()
-            #             to_square.set_piece(piece)
-            #             selected_square = from_square
-            #             if captured:
-            #                 captured_piece = captured
-            #                 board.capture_piece(captured_piece)
-            #         else:
-            #             checkmate(screen,checker_board)
+                    checkmate(screen,checker_board)
                 
+
+            elif checker_board.turn == engine2 and time_since_last_ai_move >= AI_DELAY:
+                print("engine 2")
+                print("get_time:",clock.get_time())
+                aithinking(screen,font,FONT_COLOR)
+                print(fen)
+                request = requests.get("https://stockfish.online/api/s/v2.php",params={"fen":fen,"depth":1})
+                json_dict = request.json()
+                best_moves = json_dict["bestmove"]
+                best_move = best_moves.split(" ")[1]
+                best_move = chess.Move.from_uci(best_move)
+                print(best_move)
+                if legal_moves:
+                    checker_board.push(best_move)
+                    from_square = board.get_square(best_move.uci()[:2].upper())
+                    to_square = board.get_square(best_move.uci()[2:].upper())
+                    captured = to_square.move_piece()
+                    piece = from_square.move_piece()
+                    to_square.set_piece(piece)
+                    selected_square = from_square
+                    if captured:
+                        captured_piece = captured
+                        board.capture_piece(captured_piece)
+                    time_since_last_ai_move = 0
+                else:
+                    checkmate(screen,checker_board)
+
 
 
         #  background
@@ -463,7 +499,7 @@ def main():
 
         # refresh
         pygame.display.flip()
-
+        clock.tick(60)
     pygame.quit()
 
 if __name__ == "__main__":
