@@ -32,6 +32,7 @@ class Board:
 
     def image(self):
         return self.__imagefile
+    
     def initialize_pieces(self, first_player = None):
         """Populate the board with initial chess pieces based on the first player."""
         second_player = "B" if first_player == "W" else "W"  # Determine the second player

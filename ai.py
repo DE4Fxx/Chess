@@ -7,11 +7,11 @@ import requests
 import re
 
 
-FC1 = (64,512)
-FC2 = (512,256)
-FC3 = (256,256)
-FC4 = (256,128)
-FC5 = (128,1)
+FC1 = (64,32)
+FC2 = (32,16)
+FC3 = (16,8)
+FC4 = (8,1)
+
 
 
 piece_value = {
@@ -33,19 +33,22 @@ class ChessAI(nn.Module):
         self.fc2 = nn.Linear(FC2[0],FC2[1])
         self.fc3 = nn.Linear(FC3[0],FC3[1])
         self.fc4 = nn.Linear(FC4[0],FC4[1])
-        self.fc5 = nn.Linear(FC5[0],FC5[1])
         self.opposing = chess.WHITE if color == chess.BLACK else chess.BLACK
         self.transposition_table = {}
         self.activation = nn.ReLU()
 
 
     def forward(self,x):
+        print(x)
         print("Computing...")
         x = self.activation(self.fc1(x))
+        print(x)
         x = self.activation(self.fc2(x))
+        print(x)
         x = self.activation(self.fc3(x))
+        print(x)
         x = self.activation(self.fc4(x))
-        x = self.fc5(x)
+        print(x)
         return x
 
 
@@ -77,8 +80,6 @@ class ChessAI(nn.Module):
                 board.pop()
                 max_eval = max(max_eval, eval)
                 alpha = max(alpha, eval)
-                if beta <= alpha:
-                    break
             return max_eval
 
         else:
@@ -89,8 +90,6 @@ class ChessAI(nn.Module):
                 board.pop()
                 min_eval = min(min_eval, eval)
                 beta = min(beta, eval)
-                if beta <= alpha:
-                    break
             return min_eval
 
     def order_moves(self,board):
@@ -100,7 +99,8 @@ class ChessAI(nn.Module):
             score = self(board_rep(board).unsqueeze(0)).item()
             move_scores.append((move, score))
             board.pop()
-        
+
+        print(move_scores)
         move_scores.sort(key=lambda x: x[1], reverse=True)  # Highest scores first
         return [move[0] for move in move_scores]
     
@@ -118,7 +118,7 @@ class ChessAI(nn.Module):
         return num
         
 
-    def get_best_move(self,board:chess.Board,color,depth = 2):
+    def get_best_move(self,board:chess.Board,depth = 2):
         """Find the best move using Minimax with Alpha-Beta Pruning."""
         best_move = None
         max_eval = -float('inf')
@@ -127,7 +127,7 @@ class ChessAI(nn.Module):
 
         for move in board.legal_moves:
             board.push(move)
-            eval = self.minimax(board, alpha, beta, True,depth - 1)
+            eval = self.minimax(board, alpha, beta, True,depth)
             board.pop()
 
             if eval > max_eval:
@@ -151,8 +151,9 @@ def board_rep(board:chess.Board):
 
 def get_stockfish_opinion(board:chess.Board):
     url = "https://stockfish.online/api/s/v2.php"
-    raw = requests.get(url,params={"fen":board.fen(),"depth":1})
+    raw = requests.get(url,params={"fen":board.fen(),"depth":6})
     json = raw.json()
+    print(json)
     move = json["bestmove"]
     move_string = re.match(r"bestmove ([a-z]{1}\d{1}[a-z]{1}\d{1})",move).group(1)
     return move_string
@@ -167,6 +168,7 @@ def train(board):
     for epoch in range(100):
         optimizer.zero_grad()
         inputs = board_rep(board).unsqueeze(0)
+        print("Inputs: ",inputs)
         target = torch.tensor(get_stockfish_opinion(board), dtype=torch.float32)
         output = model(inputs)
         loss = criterion(output, target)
@@ -178,21 +180,17 @@ def train(board):
 
 
 def main():
-    i = 0
-    model = ChessAI()
+    model = ChessAI("Black")
     board = chess.Board()
-
-    while i < 10000:
-        if board.legal_moves:
-            stockfish = get_stockfish_opinion(board)
-            print("Stockfish move: " + stockfish)
-            board.push(chess.Move.from_uci(stockfish))
-            my_ai = model.get_best_move(board,3,chess.BLACK)
-            print("My AI's move: ",my_ai)
-            board.push(my_ai)
-        else:
-            board = chess.Board()
-            continue
+    if not board.is_game_over():
+        stockfish = get_stockfish_opinion(board)
+        print("Stockfish move: ",stockfish)
+        board.push(chess.Move.from_uci(stockfish))
+        my_ai = model.get_best_move(board,4)
+        print("My AI's move: ",my_ai)
+        board.push(my_ai)
+    else:
+        board = chess.Board()
 
 
 
